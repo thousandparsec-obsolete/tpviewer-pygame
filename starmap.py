@@ -271,11 +271,15 @@ def update(connection, cache):
 	cid   = None
 	cmode = None
 
+	eot = connection.time() + time.time()
 	while True:
+		eottext = rendertext([(WHITE, "%4.1f" % (eot-time.time()))])
+		display.blit(eottext, (0,0))
+
 		# Pump Pygame
 		pygame.event.get()
 		pygame.display.flip()
-
+		
 		# If we get an EOT, we end the current turn
 		connection.pump()
 		pending = connection.buffered['frames-async']
@@ -304,7 +308,6 @@ def update(connection, cache):
 		# Reset the screen back to empty
 		display.blit(backdrop, (0,0))
 		if cid != None:
-
 			print cid
 
 			# Find the objects screen position
