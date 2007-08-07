@@ -24,6 +24,30 @@ WHITE = (255,255,255)
 RED   = (200,  0,  0)
 GREEN = (  0,200,  0)
 
+BACKGROUND = (180, 180, 180)
+PADDING    = 5
+
+def rendertext(text):
+	font = pygame.font.Font(pygame.font.get_default_font(), 12)
+	
+	lines = []
+	for color, line in text:
+		lines.append(font.render(line, True, color))
+
+	height = PADDING*2
+	width = 0
+	for line in lines:
+		height += line.get_height()
+		width = max(width, line.get_width()+PADDING*2)
+
+	surface = pygame.surface.Surface((width, height))
+	surface.fill(BACKGROUND)
+	height = PADDING
+	for line in lines:
+		surface.blit(line, (PADDING, height))
+		height += line.get_height()
+
+	return surface
 
 def main():
 	import pygame
@@ -199,6 +223,8 @@ def update(connection, cache):
 			cid = nid
 
 			if cid != None:
+				display.blit(backdrop, (0,0))
+
 				objs = [cache.objects[cid[1]]]
 				s = []
 				while len(objs) > 0:
@@ -213,8 +239,13 @@ def update(connection, cache):
 							color = GREEN
 						elif not obj.owner in (0, -1):
 							color = RED
-				
-					s.append((color, "%s (%s)" % (obj.name, TYPENAMES[obj.subtype])))
+			
+					# Only append the type if it is ambigious	
+					if not TYPENAMES[obj.subtype] in obj.name:
+						s.append((color, "%s (%s)" % (obj.name, TYPENAMES[obj.subtype])))
+					else:
+						s.append((color, "%s" % (obj.name)))
+
 					if obj.subtype is FLEET_TYPE:
 						for shipid, amount in obj.ships:
 							s.append((WHITE, "  %s %ss" % (amount, cache.designs[shipid].name)))
@@ -239,7 +270,10 @@ def update(connection, cache):
 				for color, line in s:
 					print line
 				print
-						
+				t = rendertext(s)					
+				display.blit(t, (0,0))
+
+
 		time.sleep(0.1)
 
 # If the mouse is over a system
