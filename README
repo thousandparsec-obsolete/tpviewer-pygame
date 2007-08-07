@@ -1,0 +1,9 @@
+tpviewer-pygame
+-----------------------------------------------------------------------------
+Simple "viewer" program. Not intended to be used to play, just to view the
+universe (and generate "pictures").
+
+This viewer requires the following be installed,
+        libtpproto-py               - Network Library
+        libtpclient-py              - Client Support Library
+		Pygame (python-pygame)      - Graphics display Library
