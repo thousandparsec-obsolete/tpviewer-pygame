@@ -21,8 +21,8 @@ FLEET_TYPE  = 4
 TYPENAMES   = {SYSTEM_TYPE: 'System', PLANET_TYPE: 'Planet', FLEET_TYPE: 'Fleet'}
 
 WHITE = (255,255,255)
-RED   = (200,  0,  0)
-GREEN = (  0,200,  0)
+RED   = (100,  0,  0)
+GREEN = (  0,100,  0)
 
 BACKGROUND = (100, 100, 100)
 PADDING    = 5
@@ -238,7 +238,9 @@ def update(connection, cache):
 
 	point = pygame.Rect((0,0), (1,1))
 
-	cid = None
+	cid   = None
+	cmode = None
+
 	while True:
 		# Pump Pygame
 		pygame.event.get()
@@ -254,12 +256,17 @@ def update(connection, cache):
 				if frame.time == 0:
 					continue
 				return
+		if pygame.mouse.get_pressed()[0]:
+			nmode = "INFO"
+		else:
+			nmode = None
 
 		point.center = pygame.mouse.get_pos()
 
 		nid = point.collidedict(screen)
-		if cid != nid:
-			cid = nid
+		if cid != nid or cmode != nmode:
+			cid   = nid
+			cmode = nmode
 
 			# Reset the screen back to empty
 			display.blit(backdrop, (0,0))
@@ -309,13 +316,13 @@ def update(connection, cache):
 								if i > 3:
 									break							
 
-
 				for color, line in s:
 					print line
 				print
 
-				t = rendertext(s)
-				display.blit(t, findposition(screenpos, t))
+				if cmode == "INFO":
+					t = rendertext(s)
+					display.blit(t, findposition(screenpos, t))
 
 
 		time.sleep(0.1)
