@@ -24,10 +24,18 @@ WHITE = (255,255,255)
 RED   = (200,  0,  0)
 GREEN = (  0,200,  0)
 
-BACKGROUND = (180, 180, 180)
+BACKGROUND = (100, 100, 100)
 PADDING    = 5
 
 def rendertext(text):
+	"""
+	Render a bunch of text into a box.
+
+	Takes a list of (color, line)
+	IE
+
+	[((255, 0, 0), "Red line"), ((255, 255, 255), "White Line")]
+	"""
 	font = pygame.font.Font(pygame.font.get_default_font(), 12)
 	
 	lines = []
@@ -48,6 +56,37 @@ def rendertext(text):
 		height += line.get_height()
 
 	return surface
+
+def findposition(pos, surface):
+	"""
+	Find the position to blit this surface too, will make sure that the surface 
+	doesn't go off the screen.
+	"""
+	screen_width, screen_height = pygame.display.get_surface().get_size()
+
+	newpos = [0, 0]
+
+	# First try placing the list to the right of the position
+	if (pos[0]+PADDING+surface.get_width()) < screen_width:
+		newpos[0] = pos[0]+PADDING
+	
+		# Make sure we don't go off the top of the screen
+		newpos[1] = max(0, pos[1]-surface.get_height()/2)
+
+		# Make sure we don't go of the bottom of the screen
+		newpos[1] = min(screen_height-surface.get_height(), newpos[1])
+
+	# Maybe to the left of the position?
+	elif (pos[0]-PADDING-surface.get_width()) > 0:
+		newpos[0] = pos[0]-PADDING-surface.get_width()
+
+		# Make sure we don't go off the top of the screen
+		newpos[1] = max(0, pos[1] - surface.get_height()/2)
+
+		# Make sure we don't go of the bottom of the screen
+		newpos[1] = min(screen_height-surface.get_height(), newpos[1])
+
+	return newpos
 
 def main():
 	import pygame
@@ -222,10 +261,15 @@ def update(connection, cache):
 		if cid != nid:
 			cid = nid
 
+			# Reset the screen back to empty
+			display.blit(backdrop, (0,0))
 			if cid != None:
-				display.blit(backdrop, (0,0))
+				
+				obj  = cache.objects[cid[1]]
+				# Find the objects screen position
+				screenpos = (int((-xmin+obj.pos[0])/xdiff*deltax), int((-ymin+obj.pos[1])/ydiff*deltay))
 
-				objs = [cache.objects[cid[1]]]
+				objs = [obj]
 				s = []
 				while len(objs) > 0:
 					obj = objs.pop(0)
@@ -252,7 +296,6 @@ def update(connection, cache):
 
 						# Draw the destination lines
 						if obj.vel != (0, 0, 0):
-							screenpos = (int((-xmin+obj.pos[0])/xdiff*deltax), int((-ymin+obj.pos[1])/ydiff*deltay))
 							screenvel = [int(obj.vel[0]/xdiff*deltax), int(obj.vel[1]/ydiff*deltay)]
 	
 							i = 1.0
@@ -270,8 +313,9 @@ def update(connection, cache):
 				for color, line in s:
 					print line
 				print
-				t = rendertext(s)					
-				display.blit(t, (0,0))
+
+				t = rendertext(s)
+				display.blit(t, findposition(screenpos, t))
 
 
 		time.sleep(0.1)
