@@ -88,6 +88,22 @@ def findposition(pos, surface):
 
 	return newpos
 
+class Translator(object):
+	def __init__(self, xmin, xdiff, xdelta, ymin, ydiff, ydelta):
+		self.xdiff  = xdiff
+		self.xmin   = xmin
+		self.xdelta = xdelta
+		
+		self.ydiff  = ydiff
+		self.ymin   = ymin
+		self.ydelta = ydelta
+
+	def toscreen(self, pos):
+		return int((-self.xmin+pos[0])/self.xdiff*self.xdelta), int((-self.ymin+   pos[1])/self.ydiff*self.ydelta)
+		
+	def toscreen_relative(self, rel):
+		return int(rel[0]/self.xdiff*self.xdelta), int(rel[1]/self.ydiff*self.ydelta)
+
 def main():
 	import pygame
 	pygame.init()
@@ -174,6 +190,9 @@ def system_ownership(cache, obj):
 	else:
 		return [x/overall for x in who]
 
+class orders:
+	MOVE_ORDER = None
+
 def update(connection, cache):
 	# Update the cache
 	def callback(*args, **kw):
@@ -181,6 +200,14 @@ def update(connection, cache):
 		pass
 	cache.update(connection, callback)
 	pid = cache.players[0].id
+
+	for id, orderdesc in objects.OrderDescs().items():
+		print id, orderdesc
+		s = "%s_ORDER" % orderdesc._name.replace(' ', '').upper()
+		if not hasattr(orders, s):
+			print "Unknown order", orderdesc
+		else:
+			setattr(orders, s, orderdesc)
 
 	# Figure out the extents of the universe
 	xmin = ymin = xmax = ymax = 0
@@ -202,11 +229,14 @@ def update(connection, cache):
 	# Create the backdrop with the things on it...
 	backdrop = pygame.display.get_surface().copy()
 	backdrop.fill((0, 0, 0))
-	deltax, deltay = backdrop.get_size()
+	xdelta, ydelta = backdrop.get_size()
+
+	t = Translator(xmin, xdiff, xdelta, ymin, ydiff, ydelta)
 
 	screen = {}
 	for obj in cache.objects.values():
-		screenpos = (int((-xmin+obj.pos[0])/xdiff*deltax)-SPRITESIZE/2, int((-ymin+obj.pos[1])/ydiff*deltay)-SPRITESIZE/2)
+		screenpos = t.toscreen(obj.pos)
+		screenpos = (screenpos[0]-SPRITESIZE/2, screenpos[1]-SPRITESIZE/2)
 
 		green, red, white = system_ownership(cache, obj)
 		if obj.subtype is SYSTEM_TYPE:
@@ -263,69 +293,89 @@ def update(connection, cache):
 
 		point.center = pygame.mouse.get_pos()
 
-		nid = point.collidedict(screen)
-		if cid != nid or cmode != nmode:
-			cid   = nid
-			cmode = nmode
+		nid = point.collidedictall(screen)
+		if cid == nid and cmode == nmode:
+			time.sleep(0.1)
+			continue
 
-			# Reset the screen back to empty
-			display.blit(backdrop, (0,0))
-			if cid != None:
+		cid   = nid
+		cmode = nmode
+
+		# Reset the screen back to empty
+		display.blit(backdrop, (0,0))
+		if cid != None:
+
+			print cid
+
+			# Find the objects screen position
+			objs = []
+			for rect, oid in cid:
+				objs.append(cache.objects[oid])
+
+			s = []
+			while len(objs) > 0:
+				obj = objs.pop(0)
+
+				screenpos = t.toscreen(obj.pos)			
+				for id in obj.contains:
+					objs.append(cache.objects[id])
 				
-				obj  = cache.objects[cid[1]]
-				# Find the objects screen position
-				screenpos = (int((-xmin+obj.pos[0])/xdiff*deltax), int((-ymin+obj.pos[1])/ydiff*deltay))
+				color = WHITE
+				if hasattr(obj, 'owner'):
+					if obj.owner == pid:
+						color = GREEN
+					elif not obj.owner in (0, -1):
+						color = RED
+		
+				# Only append the type if it is ambigious	
+				if not TYPENAMES[obj.subtype] in obj.name:
+					s.append((color, "%s (%s)" % (obj.name, TYPENAMES[obj.subtype])))
+				else:
+					s.append((color, "%s" % (obj.name)))
 
-				objs = [obj]
-				s = []
-				while len(objs) > 0:
-					obj = objs.pop(0)
-				
-					for id in obj.contains:
-						objs.append(cache.objects[id])
-					
-					color = WHITE
-					if hasattr(obj, 'owner'):
-						if obj.owner == pid:
-							color = GREEN
-						elif not obj.owner in (0, -1):
-							color = RED
-			
-					# Only append the type if it is ambigious	
-					if not TYPENAMES[obj.subtype] in obj.name:
-						s.append((color, "%s (%s)" % (obj.name, TYPENAMES[obj.subtype])))
-					else:
-						s.append((color, "%s" % (obj.name)))
+				if obj.subtype is FLEET_TYPE:
+					for shipid, amount in obj.ships:
+						s.append((WHITE, "  %s %ss" % (amount, cache.designs[shipid].name)))
 
-					if obj.subtype is FLEET_TYPE:
-						for shipid, amount in obj.ships:
-							s.append((WHITE, "  %s %ss" % (amount, cache.designs[shipid].name)))
+					# Draw the destination lines
+					if (hasattr(obj, "owner") and obj.owner != pid) and obj.vel != (0, 0, 0):
+						screenvel = t.toscreen_relative(obj.vel)
 
-						# Draw the destination lines
-						if obj.vel != (0, 0, 0):
-							screenvel = [int(obj.vel[0]/xdiff*deltax), int(obj.vel[1]/ydiff*deltay)]
-	
-							i = 1.0
-							while True:
-								startpos = (screenpos[0]+screenvel[0]*(i-1), screenpos[1]+screenvel[1]*(i-1))
-								endpos   = (screenpos[0]+screenvel[0]*i,     screenpos[1]+screenvel[1]*i)
-								
-								pygame.draw.line(display, (255*(4-i)/4,255*(4-i)/4,255*(4-i)/4), startpos, endpos)
+						i = 1.0
+						while True:
+							startpos = (screenpos[0]+screenvel[0]*(i-1), screenpos[1]+screenvel[1]*(i-1))
+							endpos   = (screenpos[0]+screenvel[0]*i,     screenpos[1]+screenvel[1]*i)
+							
+							pygame.draw.line(display, (255*(4-i)/4,255*(4-i)/4,255*(4-i)/4), startpos, endpos)
 
-								i += 1
-								if i > 3:
-									break							
+							i += 1
+							if i > 3:
+								break							
 
-				for color, line in s:
-					print line
-				print
+					for order in cache.orders[obj.id]:
+						pos = obj.pos
+						if isinstance(order, orders.MOVE_ORDER):
+							newpos = order.pos
 
-				if cmode == "INFO":
-					t = rendertext(s)
-					display.blit(t, findposition(screenpos, t))
+							startpos = t.toscreen(pos)
+							endpos   = t.toscreen(newpos)
+
+							print pos, startpos
+							print newpos, endpos
+
+							pygame.draw.line(display, (200,200,200), startpos, endpos)
+
+							pos = newpos
+
+			for color, line in s:
+				print line
+			print
+
+			if cmode == "INFO":
+				text = rendertext(s)
+				display.blit(text, findposition(screenpos, text))
 
 
-		time.sleep(0.1)
 
 # If the mouse is over a system
 # For each object in system
