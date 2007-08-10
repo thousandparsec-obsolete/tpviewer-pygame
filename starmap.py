@@ -349,7 +349,7 @@ def update(connection, cache):
 							startpos = (screenpos[0]+screenvel[0]*(i-1), screenpos[1]+screenvel[1]*(i-1))
 							endpos   = (screenpos[0]+screenvel[0]*i,     screenpos[1]+screenvel[1]*i)
 							
-							pygame.draw.line(display, (255*(4-i)/4,255*(4-i)/4,255*(4-i)/4), startpos, endpos)
+							pygame.draw.aaline(display, (255*(4-i)/4,255*(4-i)/4,255*(4-i)/4), startpos, endpos)
 
 							i += 1
 							if i > 3:
