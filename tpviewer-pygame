@@ -271,9 +271,19 @@ def update(connection, cache):
 	cid   = None
 	cmode = None
 
-	eot = connection.time() + time.time()
+	
+	eot, now = (connection.time(), time.time())
+
+	print eot, now
+
+	if failed(eot):
+		eot = None
+	else:
+		eot += now
 	while True:
-		eottext = rendertext([(WHITE, "%4.1f" % (eot-time.time()))])
+		eottext = rendertext([(WHITE, "Unknown")])
+		if eot:
+			eottext = rendertext([(WHITE, "%4.1f" % (eot-time.time()))])
 		display.blit(eottext, (0,0))
 
 		# Pump Pygame
